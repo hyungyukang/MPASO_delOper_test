@@ -2,6 +2,7 @@ using NCDatasets
 #using Plots
 using PyPlot
 import OffsetArrays.OffsetArray
+using SHTOOLS
 
 nxgrid = "2562"
 
@@ -27,7 +28,8 @@ end
 
 ###########################################################
 
-mesh_file_name = "../meshes/x1."*nxgrid*".grid.nc"   # Miniweather output file name
+#mesh_file_name = "../meshes/x1."*nxgrid*".grid.nc"   # Miniweather output file name
+mesh_file_name = "./x1."*nxgrid*".grid.nc"   # Miniweather output file name
 ds = Dataset(mesh_file_name,"r")
 
 ###########################################################
@@ -195,6 +197,8 @@ for iCell in 1:nCells
 end
 
 println(sum(anl)) # This must be unity with some numerical errors
+
+clim,chi = SHExpandLSQ(ani,latCell,lonCell,nCells,WN,1,
 
 
 # Initial field = Spherical harmonics (Y_n^m)
