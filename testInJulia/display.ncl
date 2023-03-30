@@ -36,7 +36,7 @@ begin
     ifile = "fig"
     wks = gsn_open_wks("png",ifile)
 
-    sp = f->init
+    sp = f->divergence
 
     ;sp = log10(abs(sp))
 

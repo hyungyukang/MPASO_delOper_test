@@ -4,7 +4,7 @@ using PyPlot
 import OffsetArrays.OffsetArray
 using SHTOOLS
 
-nxgrid = "2562"
+nxgrid = "10242"
 
     if ( nxgrid == "2562" )
          # dx = 480 km ~ 4deg
@@ -34,10 +34,8 @@ ds = Dataset(mesh_file_name,"r")
 
 ###########################################################
 
-latCell           = ds["latEdge"][:]
-lonCell           = ds["lonEdge"][:]
-#latCell           = ds["latCell"][:]
-#lonCell           = ds["lonCell"][:]
+latCell           = ds["latCell"][:]
+lonCell           = ds["lonCell"][:]
 meshDensity       = ds["meshDensity"][:]
 xCell             = ds["xCell"][:]
 yCell             = ds["yCell"][:]
@@ -75,8 +73,7 @@ edgesOnVertex     = ds["edgesOnVertex"][:]
 cellsOnVertex     = ds["cellsOnVertex"][:]
 kiteAreasOnVertex = ds["kiteAreasOnVertex"][:]
 
-#nCells = ds.dim["nCells"]
-nCells = ds.dim["nEdges"]
+nCells = ds.dim["nCells"]
 nEdges = ds.dim["nEdges"]
 nVertices = ds.dim["nVertices"]
 maxEdges = ds.dim["maxEdges"]
@@ -186,6 +183,12 @@ for iCell in 1:nCells
         end
     end
 
+    for n = 0:WN
+        for m = 0:n
+            alp[m,n,iCell] = norm[m,n] * alp[m,n,iCell]
+        end
+    end
+
 end 
 
 # Derivation of ALP
@@ -195,13 +198,20 @@ for iCell in 1:nCells
 
     m = 0
     for n in m+1:WN
-        dalp[m,n,iCell] = ( n*z*alp[m,n,iCell]-(n+m)*alp[m,n-1,iCell] ) / (-(a^2))
+#       dalp[m,n,iCell] = ( n*z*alp[m,n,iCell]-(n+m)*alp[m,n-1,iCell] ) / ((-a))
+
+        # Derivative w.r.t [theta] not [x]
+        dalp[m,n,iCell] =  (n*z*alp[m,n,iCell] - (n+m)*alp[m,n-1,iCell])
     end
 
     for n in 1:WN
         for m in 1:n
-            dalp[m,n,iCell] = ( -(n+m)*(n-m+1)*a*alp[m-1,n,iCell]
-                                -m*z*alp[m,n,iCell] ) / (-(a^2))
+#           dalp[m,n,iCell] = ( -(n+m)*(n-m+1)*a*alp[m-1,n,iCell]
+#                               -m*z*alp[m,n,iCell] ) / ((-a))
+
+            # Derivative w.r.t [theta] not [x]
+            dalp[m,n,iCell] =  ( -(n+m)*(n-m+1)*a*alp[m-1,n,iCell]
+                                -m*z*alp[m,n,iCell] )
         end
     end
 end
@@ -210,67 +220,115 @@ end
 init = zeros(Float64, nCells)
 anl = zeros(Float64, nCells)
 diff = zeros(Float64, nCells)
+diffEdge1 = zeros(Float64, nEdges)
+diffEdge2 = zeros(Float64, nEdges)
 num = zeros(Float64, nCells)
-u = zeros(Float64, nCells)
-v = zeros(Float64, nCells)
-normalVelocity = zeros(Float64, nCells)
-tangentialVelocity = zeros(Float64, nCells)
- = zeros(Float64, nCells)
+uCell = zeros(Float64, nCells)
+vCell = zeros(Float64, nCells)
+uEdge = zeros(Float64, nEdges)
+vEdge = zeros(Float64, nEdges)
+uEdge_anl = zeros(Float64, nEdges)
+vEdge_anl = zeros(Float64, nEdges)
+normalVelocity = zeros(Float64, nEdges)
+tangentialVelocity = zeros(Float64, nEdges)
+normalVelocity_anl = zeros(Float64, nEdges)
+tangentialVelocity_anl = zeros(Float64, nEdges)
 
 
 #m = Integer(WN/2)
-m = 5
-n = 5
+m = 0
+n = 1
 for iCell in 1:nCells
-    a = exp(im*m*lonCell[iCell]) * alp[m,n,iCell] * norm[m,n]
-    b = im*m*exp(im*m*lonCell[iCell]) * alp[m,n,iCell] * norm[m,n] / cos(latCell[iCell])
-    c = exp(im*m*lonCell[iCell]) * dalp[m,n,iCell] * norm[m,n]
-
+    a =      exp(im*m*lonCell[iCell]) * alp[m,n,iCell] 
+    b = im*m*exp(im*m*lonCell[iCell]) * alp[m,n,iCell] 
+    c =      exp(im*m*lonCell[iCell]) * ( dalp[m,n,iCell] 
+                                         -sin(latCell[iCell])* alp[m,n,iCell])
     init[iCell] = a.re
 
-    u[iCell] = b.re
-    v[iCell] = c.re
+    uCell[iCell] = -c.re
+    vCell[iCell] =  b.re
 
     # To check probability
-    #anl[iCell] = (abs(a)^2.0) * areaCell[iCell]
-    anl[iCell] = (abs(a)^2.0) * areaEdge[iCell] 
+    anl[iCell] = (abs(a)^2.0) * areaCell[iCell]
 
-#   diff[iCell] = u[iCell]
+end
+println("Check integ(|Ynm|^2) : ",sum(anl)) # This must be unity with some numerical errors
+
+# Interpolation - Cell => Edge
+for iEdge in 1:nEdges
+    cell1 = cellsOnEdge[1,iEdge]
+    cell2 = cellsOnEdge[2,iEdge]
+    uEdge_anl[iEdge] = (uCell[cell1]+uCell[cell2])/2.0
+    vEdge_anl[iEdge] = (vCell[cell1]+vCell[cell2])/2.0
+end
+#println(uEdge[1:10])
+
+# MPAS grad
+for iEdge in 1:nEdges
+    cell1 = cellsOnEdge[1,iEdge]
+    cell2 = cellsOnEdge[2,iEdge]
+    grad = - (init[cell2] - init[cell1]) / dcEdge[iEdge]
+    normalVelocity[iEdge] = grad
 end
 
+for iEdge in 1:nEdges
+    for i in 1:nEdgesOnEdge[iEdge]
+        eoe = edgesOnEdge[i,iEdge]
+        tangentialVelocity[iEdge] = tangentialVelocity[iEdge] + weightsOnEdge[i,iEdge] * normalVelocity[eoe]
+    end
+end
+
+#print(tangentialVelocity[1:100])
 
 # u,v -> normalVelocity, tangentialVelocity
-for iCell in 1:nCells
-        normalVelocity[iCell] =  u[iCell]*cos(angleEdge[iCell]) + v[iCell]*sin(angleEdge[iCell])
-    tangentialVelocity[iCell] = -u[iCell]*sin(angleEdge[iCell]) + v[iCell]*cos(angleEdge[iCell])
+
+##for iEdge in 1:nEdges
+#for iEdge in 1:50
+#        normalVelocity_anl[iEdge] =  uEdge[iEdge]*cos(angleEdge[iEdge]) + vEdge[iEdge]*sin(angleEdge[iEdge])
+#    tangentialVelocity_anl[iEdge] = -uEdge[iEdge]*sin(angleEdge[iEdge]) + vEdge[iEdge]*cos(angleEdge[iEdge])
+#
+#    println(iEdge,',',normalVelocity[iEdge],',',normalVelocity_anl[iEdge])
+#    diffEdge[iEdge] = (normalVelocity[iEdge]-normalVelocity_anl[iEdge])
+#end
+
+
+## normalVelocity, tangentialVelocity -> u,v
+for iEdge in 1:nEdges
+    # Zonal com => V spherical
+    vEdge[iEdge] = normalVelocity[iEdge] * cos(angleEdge[iEdge]) - tangentialVelocity[iEdge]*sin(angleEdge[iEdge])
+    
+    # Meridional comp => -U spherical
+    uEdge[iEdge] =-(normalVelocity[iEdge] * sin(angleEdge[iEdge]) + tangentialVelocity[iEdge]*cos(angleEdge[iEdge])) /
+                  (cos(latEdge[iEdge]) * sqrt(3.0))
+                                           # 1/root(3) for U wind based on Gaussman (2011)
+    diffEdge1[iEdge] = (uEdge[iEdge] - uEdge_anl[iEdge])^2
+    diffEdge2[iEdge] = uEdge_anl[iEdge]^2
 end
 
-# normalVelocity, tangentialVelocity -> u,v
-for iCell in 1:nCells
-    u[iCell] = normalVelocity[iCell] * cos(angleEdge[iCell]) - tangentialVelocity[iCell]*sin(angleEdge[iCell])
-    v[iCell] = normalVelocity[iCell] * sin(angleEdge[iCell]) + tangentialVelocity[iCell]*cos(angleEdge[iCell])
-   
-#   diff[iCell] = u[iCell] - diff[iCell]
-end
+sum1 = sum(diffEdge1)
+sum2 = sum(diffEdge2)
 
-# Divergence
-for iCell in 1:nCells
+println("U-wind error =", sqrt(sum1/sum2))
 
-    div = 0
-    for i in 1:nEdgesOnCell[iCell]
-        iEdge = edgesOnCell[i,iCell]
-        cell1 = cellsOnEdge[1,iEdge]
-        cell2 = cellsOnEdge[2,iEdge]
-
-        # grad
-        div = - (init[cell2] - init[cell1]) / dcEdge[iEdge]
- 
-        # div
-        div = div + edgeSignOnCell[i,iCell] * normalVelocity[iCell] * dvEdge[iEdge]
-    end
-
-    num[iCell] = grad / areaCell[iCell]
-end
+#
+## Divergence
+#for iCell in 1:nCells
+#
+#    div = 0
+#    for i in 1:nEdgesOnCell[iCell]
+#        iEdge = edgesOnCell[i,iCell]
+#        cell1 = cellsOnEdge[1,iEdge]
+#        cell2 = cellsOnEdge[2,iEdge]
+#
+#        # grad
+#        div = - (init[cell2] - init[cell1]) / dcEdge[iEdge]
+# 
+#        # div
+#        div = div + edgeSignOnCell[i,iCell] * normalVelocity[iCell] * dvEdge[iEdge]
+#    end
+#
+#    num[iCell] = grad / areaCell[iCell]
+#end
 
 #          normalVelocity(:,iEdge) = velocityZonal*cos(angleEdge(iEdge)) + velocityMeridional*sin(angleEdge(iEdge))
 #          tangentialVelocity(:,iEdge) = -velocityZonal*sin(angleEdge(iEdge)) + velocityMeridional*cos(angleEdge(iEdge))
@@ -281,7 +339,6 @@ end
 #              + tangentialBarotropicVel(iEdge)*cos(angleEdge(iEdge))
 
 
-println(sum(anl)) # This must be unity with some numerical errors
 
 ############################################################
 ############################################################
@@ -291,6 +348,7 @@ out_file_name = "./output.nc"
 ds_out = Dataset(out_file_name,"c")
 
 defDim(ds_out,"nCells",nCells)
+defDim(ds_out,"nEdges",nEdges)
 
 nc_var = defVar(ds_out,"lonCell",Float64,("nCells",))
 nc_var[:] = lonCell[:]
@@ -298,11 +356,15 @@ nc_var = defVar(ds_out,"latCell",Float64,("nCells",))
 nc_var[:] = latCell[:]
 nc_var = defVar(ds_out,"init",Float64,("nCells",))
 nc_var[:] = init[:]
-nc_var = defVar(ds_out,"u",Float64,("nCells",))
-nc_var[:] = u[:]
-nc_var = defVar(ds_out,"v",Float64,("nCells",))
-nc_var[:] = v[:]
-nc_var = defVar(ds_out,"normalVelocity",Float64,("nCells",))
+nc_var = defVar(ds_out,"uEdge",Float64,("nEdges",))
+nc_var[:] = uEdge[:]
+nc_var = defVar(ds_out,"vEdge",Float64,("nEdges",))
+nc_var[:] = vEdge[:]
+nc_var = defVar(ds_out,"uEdge_anl",Float64,("nEdges",))
+nc_var[:] = uEdge_anl[:]
+nc_var = defVar(ds_out,"vEdge_anl",Float64,("nEdges",))
+nc_var[:] = vEdge_anl[:]
+nc_var = defVar(ds_out,"normalVelocity",Float64,("nEdges",))
 nc_var[:] = normalVelocity[:]
 
 close(ds_out)

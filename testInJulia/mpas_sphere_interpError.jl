@@ -4,7 +4,7 @@ using PyPlot
 
 ###########################################################
 
-mesh_file_name = "../meshes/x1.40962.grid.nc"   # Miniweather output file name
+mesh_file_name = "../../meshes/x1.2562.grid.nc"   # Miniweather output file name
 ds = Dataset(mesh_file_name,"r")
 
 ###########################################################
@@ -35,8 +35,8 @@ edgesOnCell       = ds["edgesOnCell"][:]
 edgesOnEdge       = ds["edgesOnEdge"][:]
 weightsOnEdge     = ds["weightsOnEdge"][:]
 dvEdge            = ds["dvEdge"][:]
-dv1Edge           = ds["dv1Edge"][:]
-dv2Edge           = ds["dv2Edge"][:]
+#dv1Edge           = ds["dv1Edge"][:]
+#dv2Edge           = ds["dv2Edge"][:]
 dcEdge            = ds["dcEdge"][:]
 angleEdge         = ds["angleEdge"][:]
 areaCell          = ds["areaCell"][:]
@@ -75,6 +75,23 @@ end
 for iEdge in 1:nEdges
     areaEdge[iEdge] = dcEdge[iEdge] * dvEdge[iEdge]
 end
+
+############
+println(sum(areaEdge))
+println(4.0*pi)
+
+numCell = zeros(Float64,  nCells)
+for iCell in 1:nCells
+    sum1 = 0.0
+    for i in 1:nEdgesOnCell[iCell]
+        iEdge = edgesOnCell[i,iCell]
+        sum1 = sum1 + areaEdge[iEdge] * areaEdge[iEdge] / 4.0
+#       sum1 = sum1 + initEdge[iEdge] * areaEdge[iEdge] / 4.0
+    end
+    numCell[iCell] = sum1 / areaCell[iCell]
+end
+println(sum(numCell))
+############
 
 
 ###########################################################
@@ -158,8 +175,8 @@ for iCell in 1:nCells
     sum1 = 0.0
     for i in 1:nEdgesOnCell[iCell]
         iEdge = edgesOnCell[i,iCell]
-        sum1 = sum1 + numEdge[iEdge] * areaEdge[iEdge] / 4.0
-#       sum1 = sum1 + initEdge[iEdge] * areaEdge[iEdge] / 4.0
+#       sum1 = sum1 + numEdge[iEdge] * areaEdge[iEdge] / 4.0
+        sum1 = sum1 + initEdge[iEdge] * areaEdge[iEdge] / 4.0
     end
     numCell[iCell] = sum1 / areaCell[iCell]
 end

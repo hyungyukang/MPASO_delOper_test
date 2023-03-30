@@ -4,8 +4,12 @@ using PyPlot
 
 ###########################################################
 
-mesh_file_name = "../meshes/x1.10242.grid.nc"   # Miniweather output file name
+mesh_file_name = "x1.2562.grid.nc"   # Miniweather output file name
+init_file_name = "output.nc"
+
 ds = Dataset(mesh_file_name,"r")
+ds_init = Dataset(init_file_name,"r")
+
 
 ###########################################################
 
@@ -35,8 +39,6 @@ edgesOnCell       = ds["edgesOnCell"][:]
 edgesOnEdge       = ds["edgesOnEdge"][:]
 weightsOnEdge     = ds["weightsOnEdge"][:]
 dvEdge            = ds["dvEdge"][:]
-#dv1Edge           = ds["dv1Edge"][:]
-#dv2Edge           = ds["dv2Edge"][:]
 dcEdge            = ds["dcEdge"][:]
 angleEdge         = ds["angleEdge"][:]
 areaCell          = ds["areaCell"][:]
@@ -48,13 +50,16 @@ edgesOnVertex     = ds["edgesOnVertex"][:]
 cellsOnVertex     = ds["cellsOnVertex"][:]
 kiteAreasOnVertex = ds["kiteAreasOnVertex"][:]
 
+init = ds_init["init"][:]
+
+###########################################################
+
 nCells = ds.dim["nCells"]
 nEdges = ds.dim["nEdges"]
 nVertices = ds.dim["nVertices"]
 maxEdges = ds.dim["maxEdges"]
 maxEdges2 = ds.dim["maxEdges2"]
 vertexDegree = ds.dim["vertexDegree"]
-
 
 edgeSignOnCell = zeros(Float64, maxEdges,nCells)
  
@@ -67,7 +72,10 @@ for iCell in 1:nCells
         else
            edgeSignOnCell[i,iCell] =  1.0
         end
+
     end
+ 
+    areaCell[iCell] = areaCell[iCell] * 6371000^2
 end 
 
 
@@ -76,57 +84,80 @@ end
 # Initial field = Spherical harmonics (Y_n^m)
 # del2 Analytic solution = -n(n+1)*Y_n^m
 
-init = zeros(Float64, nCells)
+#init = zeros(Float64, nCells)
 anl = zeros(Float64, nCells)
 num = zeros(Float64, nCells)
 diff = zeros(Float64, nCells)
-
-# Spherical harmonics (Y_n=4^m=3)
-m = 3
-n = 4
-
-    # P_n=4_m=3 (z) = -105z(1-z^2)^(3/2)
-
-for iCell in 1:nCells
-    z = sin(latCell[iCell])
-    a = exp(m*lonCell[iCell]im) * (-105.0*z*(1.0-z^2)^(1.5))
-    init[iCell] = a.re
-
-    # Analytic solution
-    anl[iCell] = -n*(n+1)*a.re
-end
+psi_n0 = zeros(Float64, nCells)
+psi_n1 = zeros(Float64, nCells)
+psi_d2 = zeros(Float64, nCells)
 
 ###########################################################
 
-# Compute div(grad(phi))
+# Time stepping
+ntime = 16
+dt = 7200.0
+nu = 180000.0
 
-for iCell in 1:nCells
 
-    grad = 0
-    for i in 1:nEdgesOnCell[iCell]
-        iEdge = edgesOnCell[i,iCell]
-        cell1 = cellsOnEdge[1,iEdge]
-        cell2 = cellsOnEdge[2,iEdge]
+# Initial condition
+psi_n0[:] = init[:]
+println(psi_n0[1:10])
 
-        # grad
-        div = - (init[cell2] - init[cell1]) / dcEdge[iEdge]
+for n = 1:ntime
  
-        # div
-        grad = grad + edgeSignOnCell[i,iCell] * div * dvEdge[iEdge]
+    println("Ntime",n)
+    # Compute div(grad(phi))
+    for iCell in 1:nCells
+        grad = 0
+        for i in 1:nEdgesOnCell[iCell]
+            iEdge = edgesOnCell[i,iCell]
+            cell1 = cellsOnEdge[1,iEdge]
+            cell2 = cellsOnEdge[2,iEdge]
+            # grad
+            div = - (psi_n0[cell2] - psi_n0[cell1]) / dcEdge[iEdge]
+            # div
+            grad = grad + edgeSignOnCell[i,iCell] * div * dvEdge[iEdge]
+        end
+        psi_d2[iCell] = grad / areaCell[iCell]
     end
 
-    num[iCell] = grad / areaCell[iCell]
+    psi_n1[:] = psi_n0[:] + dt*nu*psi_d2[:]
+
+    psi_n1[:] = 0.5*(psi_n0[:]+psi_n1[:])
+
+
+    # Compute div(grad(phi))
+    for iCell in 1:nCells
+        grad = 0
+        for i in 1:nEdgesOnCell[iCell]
+            iEdge = edgesOnCell[i,iCell]
+            cell1 = cellsOnEdge[1,iEdge]
+            cell2 = cellsOnEdge[2,iEdge]
+            # grad
+            div = - (psi_n1[cell2] - psi_n1[cell1]) / dcEdge[iEdge]
+            # div
+            grad = grad + edgeSignOnCell[i,iCell] * div * dvEdge[iEdge]
+        end
+        psi_d2[iCell] = grad / areaCell[iCell]
+    end
+
+    psi_n1[:] = psi_n0[:] + dt*nu*psi_d2[:]
+
+    # Stepping
+    psi_n0[:] = psi_n1[:]
 end
 
-
 ###########################################################
+
+println(psi_n0[1:10])
 
 ###########################################################
 
 # Output
 diff[:] = num[:]-anl[:]
 
-out_file_name = "./output.nc"
+out_file_name = "./output_time.nc"
 ds_out = Dataset(out_file_name,"c")
 
 defDim(ds_out,"nCells",nCells)
@@ -135,31 +166,24 @@ nc_var = defVar(ds_out,"lonCell",Float64,("nCells",))
 nc_var[:] = lonCell[:]
 nc_var = defVar(ds_out,"latCell",Float64,("nCells",))
 nc_var[:] = latCell[:]
-nc_var = defVar(ds_out,"init",Float64,("nCells",))
-nc_var[:] = init[:]
-nc_var = defVar(ds_out,"anl",Float64,("nCells",))
-nc_var[:] = anl[:]
-nc_var = defVar(ds_out,"num",Float64,("nCells",))
-nc_var[:] = num[:]
-nc_var = defVar(ds_out,"diff",Float64,("nCells",))
-nc_var[:] = diff[:]
+nc_var = defVar(ds_out,"psi_n0",Float64,("nCells",))
+nc_var[:] = psi_n0[:]
 
 close(ds_out)
-
 #print(latCell)
 
 ###########################################################
-
-# Compute L2 norm error
-
-for iCell in 1:nCells
-    diff[iCell] = diff[iCell]^2
-    anl[iCell] = anl[iCell]^2
-end
-
-asum = sum(diff)
-bsum = sum(anl)
-
-l2norm = sqrt(asum/bsum)
-
-println("L2 norm error =" , l2norm)
+#
+## Compute L2 norm error
+#
+#for iCell in 1:nCells
+#    diff[iCell] = diff[iCell]^2
+#    anl[iCell] = anl[iCell]^2
+#end
+#
+#asum = sum(diff)
+#bsum = sum(anl)
+#
+#l2norm = sqrt(asum/bsum)
+#
+#println("L2 norm error =" , l2norm)

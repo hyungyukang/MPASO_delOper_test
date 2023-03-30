@@ -18,19 +18,21 @@ plt.rc('legend',fontsize=12.5)
 
 runDir = './'
 initFileName = 'x1.2562.grid.nc'
-outputFileName = 'output.nc'
+#outputFileName = 'output.nc'
+outputFileName = 'output_time.nc'
 
 initDS = xr.open_dataset(runDir+initFileName) # For mesh info
-outDS = xr.open_dataset(runDir+outputFileName) # For output
+outDS = xr.open_dataset(runDir+outputFileName) # For output file read
 
 pi180 = np.pi / 180.0
 
 nCells = initDS.dims['nCells']
 N = int(np.sqrt(nCells))
-lonCell = initDS.variables['lonCell']/pi180
-latCell = initDS.variables['latCell']/pi180
+lonCell = initDS.variables['lonCell']/pi180 # RAD -> DEG
+latCell = initDS.variables['latCell']/pi180 # RAD -> DEG
 
-output = outDS.variables['init']
+#output = outDS.variables['init']
+output = outDS.variables['psi_n0']
 #====================================================#
 
 # Get SPH coefficient on the MPAS grid
