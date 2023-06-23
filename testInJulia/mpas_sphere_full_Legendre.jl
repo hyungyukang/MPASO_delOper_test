@@ -131,6 +131,9 @@ for n = 0:WN
 end
 
 
+println("norm 0,1 ",norm[0,1])
+
+
 # First few Associated Legendre Polynomials (ALP)
 for iCell in 1:nCells
     z = sin(latCell[iCell])

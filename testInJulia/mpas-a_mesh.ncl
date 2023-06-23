@@ -12,7 +12,7 @@ begin
   gsn_define_colormap(wks,colors)
 
 ;  fname = getenv("FNAME")
-  f = addfile("x1.40962.grid.nc","r")
+  f = addfile("x1.2562.grid.nc","r")
 
   xVertex = f->xVertex(:)
   yVertex = f->yVertex(:)
@@ -31,14 +31,14 @@ begin
   res                      = True
   res@gsnMaximize          = True
 
-; res@mpProjection      = "Orthographic"
+  res@mpProjection      = "Orthographic"
   res@mpDataBaseVersion = "MediumRes"
   res@mpCenterLatF      =  50.
   res@mpCenterLonF      = -100.
   res@mpCenterRotF      = -100.
   res@mpGridAndLimbOn   = False
-  res@mpOutlineOn       = True
-  res@mpFillOn          = True
+  res@mpOutlineOn       = False
+  res@mpFillOn          = False
   res@mpPerimOn         = False
   res@gsnFrame          = False
   res@mpOceanFillColor  = 3

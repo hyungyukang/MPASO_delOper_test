@@ -119,17 +119,17 @@ for iVertex in 1:nVertices
 end
  
 for iEdge in 1:nEdges
-    areaEdge[iEdge] = dcEdge[iEdge] * dvEdge[iEdge]/2.0
+    areaEdge[iEdge] = dcEdge[iEdge] * dvEdge[iEdge]
 end
 
 ###########################################################
 ###########################################################
 
 # Allocation array
-_alp = zeros(Float64,2*WN+1,WN+1,nEdges)
-alp  = OffsetArray(_alp,-WN:WN,0:WN,1:nEdges)
-_dalp = zeros(Float64,2*WN+1,WN+1,nEdges)
-dalp  = OffsetArray(_dalp,-WN:WN,0:WN,1:nEdges)
+_alp = zeros(Float64,WN+1,WN+1,nEdges)
+alp  = OffsetArray(_alp,0:WN,0:WN,1:nEdges)
+_dalp = zeros(Float64,WN+1,WN+1,nEdges)
+dalp  = OffsetArray(_dalp,0:WN,0:WN,1:nEdges)
 _norm = zeros(Float64,WN+1,WN+1)
 norm = OffsetArray(_norm,0:WN,0:WN)
 
@@ -155,21 +155,21 @@ for iEdge in 1:nEdges
 
     alp[ 0,1,iEdge] = z
     alp[ 1,1,iEdge] = -sqrt(x)
-    alp[-1,1,iEdge] = -0.5*alp[1,1,iEdge]
+#   alp[-1,1,iEdge] = -0.5*alp[1,1,iEdge]
 
     alp[ 0,2,iEdge] = 0.5*(3.0*z^2-1.0)
     alp[ 1,2,iEdge] = -3.0*z*sqrt(x)
     alp[ 2,2,iEdge] =  3.0*(x)
-    alp[-2,2,iEdge] = (1.0/24.0)*alp[2,2,iEdge]
-    alp[-1,2,iEdge] =-(1.0/6.0)*alp[1,2,iEdge]
+#   alp[-2,2,iEdge] = (1.0/24.0)*alp[2,2,iEdge]
+#   alp[-1,2,iEdge] =-(1.0/6.0)*alp[1,2,iEdge]
 
     alp[ 0,3,iEdge] = 0.5*(5.0*z^3-3.0*z)
     alp[ 1,3,iEdge] = 1.5*(1.0-5.0*z^2)*sqrt(x)
     alp[ 2,3,iEdge] = 15.0*z*(x)
     alp[ 3,3,iEdge] =-15.0*x^(3.0/2.0)
-    alp[-3,3,iEdge] =-(1.0/720.0)*alp[3,3,iEdge]
-    alp[-2,3,iEdge] = (1.0/120.0)*alp[2,3,iEdge]
-    alp[-1,3,iEdge] =-(1.0/12.0)*alp[1,3,iEdge]
+#   alp[-3,3,iEdge] =-(1.0/720.0)*alp[3,3,iEdge]
+#   alp[-2,3,iEdge] = (1.0/120.0)*alp[2,3,iEdge]
+#   alp[-1,3,iEdge] =-(1.0/12.0)*alp[1,3,iEdge]
 end
 
 
@@ -186,7 +186,6 @@ for iEdge in 1:nEdges
                                     -(n+m-1)*alp[m,n-2,iEdge]) / (n-m)
         end
     end
- 
 
     for n in 4:WN-1
         alp[n,n  ,iEdge] =  -(2.0*(n-1)+1.0)*a*alp[n-1,n-1,iEdge]
@@ -201,10 +200,9 @@ for iEdge in 1:nEdges
         end
     end
 
-   
     for n in 0:WN
         for m in 0:n
-            alp[m,n,iEdge] = norm[m,n] * alp[m,n,iEdge]
+            alp[m,n,iEdge] = norm[m,n] * alp[m,n,iEdge] * sqrt(2.0)
         end
     end
 
@@ -228,6 +226,7 @@ for iEdge in 1:nEdges
     end
 end
 
+
 # Save the last mode
 init = zeros(Float64, nEdges)
 anl = zeros(Float64, nEdges)
@@ -235,17 +234,23 @@ diff = zeros(Float64, nEdges)
 num = zeros(Float64, nEdges)
 u = zeros(Float64, nEdges)
 v = zeros(Float64, nEdges)
+u_anl = zeros(Float64, nEdges)
+v_anl = zeros(Float64, nEdges)
 normalVelocity = zeros(Float64, nEdges)
 tangentialVelocity = zeros(Float64, nEdges)
 divergence = zeros(Float64, nCells)
 relativeVorticity = zeros(Float64,nVertices)
 relativeVorticityCell = zeros(Float64,nCells)
 relativeVorticityEdge = zeros(Float64,nEdges)
+del2u = zeros(Float64, nEdges)
+Vx = zeros(Float64,nEdges)
+Vy = zeros(Float64,nEdges)
+Vz = zeros(Float64,nEdges)
 
 ###############################################################################################
 #m = Integer(WN/2)
 m = 0
-n = 10 
+n = 1
 for iEdge in 1:nEdges
     a =      exp(im*m*lonEdge[iEdge]) *  alp[m,n,iEdge] 
     b = im*m*exp(im*m*lonEdge[iEdge]) *  alp[m,n,iEdge]
@@ -255,8 +260,8 @@ for iEdge in 1:nEdges
 
     init[iEdge] = a.re
 
-    u[iEdge] = -c.re #/ cos(latEdge[iEdge])
-    v[iEdge] =  b.re #/ cos(latEdge[iEdge])
+    u_anl[iEdge] = a.re #/ cos(latEdge[iEdge])
+    #v[iEdge] =  b.re #/ cos(latEdge[iEdge])
 
     # To check probability
     anl[iEdge] = (abs(a)^2.0) * areaEdge[iEdge] 
@@ -266,46 +271,29 @@ end
 println("int|Y| = ",sum(anl))
 ###############################################################################################
 
-#println(u[1:100])
-
-
 # u,v -> normalVelocity, tangentialVelocity
 for iEdge in 1:nEdges
-        normalVelocity[iEdge] =  u[iEdge]*cos(angleEdge[iEdge]) + v[iEdge]*sin(angleEdge[iEdge])
-    tangentialVelocity[iEdge] = -u[iEdge]*sin(angleEdge[iEdge]) + v[iEdge]*cos(angleEdge[iEdge])
-end
-
-# normalVelocity, tangentialVelocity -> u,v
-for iEdge in 1:nEdges
-    u[iEdge] = normalVelocity[iEdge] * cos(angleEdge[iEdge]) - tangentialVelocity[iEdge]*sin(angleEdge[iEdge])
-    v[iEdge] = normalVelocity[iEdge] * sin(angleEdge[iEdge]) + tangentialVelocity[iEdge]*cos(angleEdge[iEdge])
+        normalVelocity[iEdge] =  u_anl[iEdge]*cos(angleEdge[iEdge]) + v_anl[iEdge]*sin(angleEdge[iEdge])
+    tangentialVelocity[iEdge] = -u_anl[iEdge]*sin(angleEdge[iEdge]) + v_anl[iEdge]*cos(angleEdge[iEdge])
 end
 
 # Divergence
 for iCell in 1:nCells
-
-    invAreaCell1 = 1.0 / areaCell[iCell]
-    div = 0
+    div = 0.0
     for i in 1:nEdgesOnCell[iCell]
-
         iEdge = edgesOnCell[i,iCell]
-        #cell1 = cellsOnEdge[1,iEdge]
-        #cell2 = cellsOnEdge[2,iEdge]
-
         # div
-        r_tmp = dvEdge[iEdge]*normalVelocity[iEdge]*invAreaCell1
+        r_tmp = dvEdge[iEdge]*normalVelocity[iEdge]
         div = div - edgeSignOnCell[i,iCell] * r_tmp
     end
-    divergence[iCell] = div
+    divergence[iCell] = div / areaCell[iCell]
+    #println(divergence[iCell])
 end
-
-println(u[1:100])
-#println(divergence[1:100])
-println("Div. Error = ",sum(abs.(divergence)/nCells))
 
 # Relative Vorticity
 for iVertex in 1:nVertices
     invAreaTri1 = 1.0 / areaTriangle[iVertex]
+    relativeVorticity[iVertex] = 0.0
     for i in 1:vertexDegree
         iEdge = edgesOnVertex[i,iVertex]
         r_tmp = dcEdge[iEdge] * normalVelocity[iEdge]
@@ -313,30 +301,148 @@ for iVertex in 1:nVertices
     end
 end 
 
-# Interpolation - Vertex => Cell
-for iCell in 1:nCells
-    invAreaCell1 = 1.0 / areaCell[iCell]
-    for i in 1:nEdgesOnCell[iCell]
-        j = kiteIndexOnCell[i,iCell]
-        iVertex = verticesOnCell[i,iCell]
-        relativeVorticityCell[iCell] = relativeVorticityCell[iCell]
-                                     + kiteAreasOnVertex[j,iVertex] * relativeVorticity[iVertex]*invAreaCell1
+# Del2
+for iEdge in 1:nEdges
+   cell1 = cellsOnEdge[1,iEdge]
+   cell2 = cellsOnEdge[2,iEdge]
+   vertex1 = verticesOnEdge[1,iEdge]
+   vertex2 = verticesOnEdge[2,iEdge]
+
+   dcEdgeInv = 1.0 / dcEdge[iEdge]
+   dvEdgeInv = 1.0 / dvEdge[iEdge]
+
+   uDiff = (divergence[cell2] - divergence[cell1])*dcEdgeInv
+          -(relativeVorticity[vertex2]-relativeVorticity[vertex1])*dvEdgeInv
+   del2u[iEdge] = uDiff
+   println((divergence[cell2] - divergence[cell1])*dcEdgeInv,',',(relativeVorticity[vertex2]-relativeVorticity[vertex1])*dvEdgeInv)
+   #println(del2u[iEdge])
+end
+
+# Tangential velocity from normalVelocity
+for iEdge in 1:nEdges
+    tangentialVelocity[iEdge] = 0.0
+    for i in 1:nEdgesOnEdge[iEdge]
+        eoe = edgesOnEdge[i,iEdge]
+        tangentialVelocity[iEdge] = tangentialVelocity[iEdge] + weightsOnEdge[i,iEdge] * del2u[eoe]
     end
 end
+
+
+
+# normalVelocity, tangentialVelocity -> u,v
+for iEdge in 1:nEdges
+    u[iEdge] = del2u[iEdge] * cos(angleEdge[iEdge]) - tangentialVelocity[iEdge]*sin(angleEdge[iEdge])
+    v[iEdge] = del2u[iEdge] * sin(angleEdge[iEdge]) + tangentialVelocity[iEdge]*cos(angleEdge[iEdge])
+    u_anl[iEdge] = -n*(n+1)*u_anl[iEdge]
+end
+
+#
+#for iEdge in 1:50
+#    println(iEdge,',',u[iEdge],',',u_anl[iEdge])
+#end
+
+
+## Tangential velocity from normalVelocity
+#for iEdge in 1:nEdges
+#    for i in 1:nEdgesOnEdge[iEdge]
+#        eoe = edgesOnEdge[i,iEdge]
+#        tangentialVelocity[iEdge] = tangentialVelocity[iEdge] + weightsOnEdge[i,iEdge] * init[eoe]
+#    end
+#end
+#
+## Vector reconstruction
+## normalVelocity, tangentialVelocity -> u,v
+#for iEdge in 1:nEdges
+#    u[iEdge] = init[iEdge] * cos(angleEdge[iEdge]) - tangentialVelocity[iEdge]*sin(angleEdge[iEdge])
+#    v[iEdge] = init[iEdge] * sin(angleEdge[iEdge]) + tangentialVelocity[iEdge]*cos(angleEdge[iEdge])
+#end
+#
+## UV -> Vxyz
+#for iEdge in 1:nEdges
+#    sinlon = sin(lonEdge[iEdge])
+#    sinlat = sin(latEdge[iEdge])
+#    coslon = cos(lonEdge[iEdge])
+#    coslat = cos(latEdge[iEdge])
+#    
+#    
+#    Vx[iEdge] = -sinlon * u[iEdge] -sinlat*coslon*v[iEdge]
+#    Vy[iEdge] =  coslon * u[iEdge] -sinlat*sinlon*v[iEdge]
+#    Vz[iEdge] =                     coslat       *v[iEdge]
+#
+#    Vx[iEdge] = -n*(n+1) * Vx[iEdge]
+#    Vy[iEdge] = -n*(n+1) * Vy[iEdge]
+#    Vz[iEdge] = -n*(n+1) * Vz[iEdge]
+#end
+#
+#
+## Vxyz -> UV
+#for iEdge in 1:nEdges
+#    sinlon = sin(lonEdge[iEdge])
+#    sinlat = sin(latEdge[iEdge])
+#    coslon = cos(lonEdge[iEdge])
+#    coslat = cos(latEdge[iEdge])
+#
+#    u[iEdge] = -sinlon       *Vx[iEdge] +coslon       *Vy[iEdge]
+#    v[iEdge] = -sinlat*coslon*Vx[iEdge] -sinlat*sinlon*Vy[iEdge] +coslat*Vz[iEdge]
+#end
+#
+## UV -> norm, tan
+#for iEdge in 1:nEdges
+#         normalVelocity[iEdge] =  u[iEdge]*cos(angleEdge[iEdge]) + v[iEdge]*sin(angleEdge[iEdge])
+#     tangentialVelocity[iEdge] = -u[iEdge]*sin(angleEdge[iEdge]) + v[iEdge]*cos(angleEdge[iEdge])
+#end
+
+
+
+# Laplacian
+## u,v -> normalVelocity, tangentialVelocity
+#for iEdge in 1:nEdges
+#        normalVelocity[iEdge] =  u[iEdge]*cos(angleEdge[iEdge]) + v[iEdge]*sin(angleEdge[iEdge])
+#    tangentialVelocity[iEdge] = -u[iEdge]*sin(angleEdge[iEdge]) + v[iEdge]*cos(angleEdge[iEdge])
+#end
+#
+## normalVelocity, tangentialVelocity -> u,v
+#for iEdge in 1:nEdges
+#    u[iEdge] = normalVelocity[iEdge] * cos(angleEdge[iEdge]) - tangentialVelocity[iEdge]*sin(angleEdge[iEdge])
+#    v[iEdge] = normalVelocity[iEdge] * sin(angleEdge[iEdge]) + tangentialVelocity[iEdge]*cos(angleEdge[iEdge])
+#end
+
+
+#for iEdge in 1:50
+#    println(iEdge,',',del2u[iEdge],',',anl[iEdge],',',normalVelocity[iEdge])
+#    println(iEdge,',',del2u[iEdge],',',anl[iEdge],',',init[iEdge])
+#    println(iEdge,',',dcEdge[iEdge],',',dvEdge[iEdge])
+#    println(iEdge,',',divergence[iEdge],',',relativeVorticity[iEdge])
+#end
+
+
+
+
+
+## Interpolation - Vertex => Cell
+#for iCell in 1:nCells
+#    invAreaCell1 = 1.0 / areaCell[iCell]
+#    for i in 1:nEdgesOnCell[iCell]
+#        j = kiteIndexOnCell[i,iCell]
+#        iVertex = verticesOnCell[i,iCell]
+#        relativeVorticityCell[iCell] = relativeVorticityCell[iCell]
+#                                     + kiteAreasOnVertex[j,iVertex] * relativeVorticity[iVertex]*invAreaCell1
+#    end
+#end
 
 ###########################################################
 
 # Interpolation - Cell => Edge
-for iEdge in 1:nEdges
-    cell1 = cellsOnEdge[1,iEdge]
-    cell2 = cellsOnEdge[2,iEdge]
-    relativeVorticityEdge[iEdge] = ( relativeVorticityCell[cell1]
-                                    +relativeVorticityCell[cell2])/2.0
-    anl[iEdge] =  +(n*(n+1)) * init[iEdge]
-    diff[iEdge] = abs(relativeVorticityEdge[iEdge] - anl[iEdge])
-end
-
-println("Rel Vol error = ",sum(diff))
+#for iEdge in 1:nEdges
+#    cell1 = cellsOnEdge[1,iEdge]
+#    cell2 = cellsOnEdge[2,iEdge]
+#    relativeVorticityEdge[iEdge] = ( relativeVorticityCell[cell1]
+#                                    +relativeVorticityCell[cell2])/2.0
+#    anl[iEdge] =  +(n*(n+1)) * init[iEdge]
+#    diff[iEdge] = abs(relativeVorticityEdge[iEdge] - anl[iEdge])
+#end
+#
+#println("Rel Vol error = ",sum(diff))
 
 #l2norm = sqrt(asum/bsum)
 #println("L2 norm error (Cell => Edge) =" , l2norm)
@@ -380,10 +486,16 @@ nc_var = defVar(ds_out,"u",Float64,("nEdges",))
 nc_var[:] = u[:]
 nc_var = defVar(ds_out,"v",Float64,("nEdges",))
 nc_var[:] = v[:]
+nc_var = defVar(ds_out,"u_anl",Float64,("nEdges",))
+nc_var[:] = u_anl[:]
 nc_var = defVar(ds_out,"normalVelocity",Float64,("nEdges",))
 nc_var[:] = normalVelocity[:]
 nc_var = defVar(ds_out,"divergence",Float64,("nCells",))
 nc_var[:] = divergence[:]
+nc_var = defVar(ds_out,"anl",Float64,("nEdges",))
+nc_var[:] = anl[:]
+nc_var = defVar(ds_out,"del2u",Float64,("nEdges",))
+nc_var[:] = del2u[:]
 
 close(ds_out)
 

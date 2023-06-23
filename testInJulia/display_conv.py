@@ -7,7 +7,7 @@ import os
 plt.rcParams.update({'font.size': 14})
 plt.rc('legend',fontsize=12.5)
 
-file1 = open('data_conv_divGrad.txt','r')
+file1 = open('data_conv_lap_div_vor.txt','r')
 
 nCol = 2
 nRow = 7

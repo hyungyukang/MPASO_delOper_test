@@ -1,0 +1,1 @@
+../testInJulia/x1.2562.grid.nc

@@ -4,7 +4,7 @@ using PyPlot
 
 ###########################################################
 
-mesh_file_name = "../meshes/x1.10242.grid.nc"   # Miniweather output file name
+mesh_file_name = "../../meshes/x1.10242.grid.nc"   # Miniweather output file name
 ds = Dataset(mesh_file_name,"r")
 
 ###########################################################

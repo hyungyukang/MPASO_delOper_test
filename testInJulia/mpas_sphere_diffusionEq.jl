@@ -4,8 +4,8 @@ using PyPlot
 
 ###########################################################
 
-mesh_file_name = "x1.2562.grid.nc"   # Miniweather output file name
-init_file_name = "output.nc"
+mesh_file_name = "x1.40962.grid.nc"   # Miniweather output file name
+init_file_name = "ALP_3modes_QU120.0km_Cell.nc"
 
 ds = Dataset(mesh_file_name,"r")
 ds_init = Dataset(init_file_name,"r")
@@ -50,7 +50,7 @@ edgesOnVertex     = ds["edgesOnVertex"][:]
 cellsOnVertex     = ds["cellsOnVertex"][:]
 kiteAreasOnVertex = ds["kiteAreasOnVertex"][:]
 
-init = ds_init["init"][:]
+init = ds_init["alp"][1,:]
 
 ###########################################################
 
@@ -98,7 +98,6 @@ psi_d2 = zeros(Float64, nCells)
 ntime = 16
 dt = 7200.0
 nu = 180000.0
-
 
 # Initial condition
 psi_n0[:] = init[:]
