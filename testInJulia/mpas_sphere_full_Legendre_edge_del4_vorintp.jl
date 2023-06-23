@@ -278,7 +278,7 @@ Vz = zeros(Float64,nEdges)
 m = 2
 n = 3
 #lap = -n * (n+1)
-lap = (-n * (n+1))^2
+lap = (-n * (n+1))^2.0
 
 for iEdge in 1:nEdges
 
@@ -339,6 +339,32 @@ for iVertex in 1:nVertices
     end
 end 
 
+# Interpolation - Vertex => Cell
+for iCell in 1:nCells
+    invAreaCell1 = 1.0 / areaCell[iCell]
+    for i in 1:nEdgesOnCell[iCell]
+        j = kiteIndexOnCell[i,iCell]
+        iVertex = verticesOnCell[i,iCell]
+        relativeVorticityCell[iCell] = relativeVorticityCell[iCell]
+                                     + kiteAreasOnVertex[j,iVertex] * relativeVorticity[iVertex]*invAreaCell1
+    end
+end
+# Cell -> Vertex
+for iVertex in 1:nVertices
+    invAreaTri1 = 1.0 / areaTriangle[iVertex]
+    areaSum = 0.0
+    relativeVorticity[iVertex] = 0.0
+    for i in 1:vertexDegree
+        iCell = cellsOnVertex[i,iVertex]
+        areaSum = areaSum + kiteAreasOnVertex[i,iVertex]
+        if ( iCell > 0 )
+        relativeVorticity[iVertex] = relativeVorticity[iVertex] + kiteAreasOnVertex[i,iVertex] * relativeVorticityCell[iCell]
+        end
+    end
+    relativeVorticity[iVertex] = relativeVorticity[iVertex] / areaSum
+end
+
+
 #####################################
 ## Del2
 for iEdge in 1:nEdges
@@ -380,6 +406,32 @@ for iVertex in 1:nVertices
         relativeVorticity[iVertex] = relativeVorticity[iVertex] + edgeSignOnVertex[i,iVertex] * r_tmp * invAreaTri1
     end
 end 
+
+# Interpolation - Vertex => Cell
+for iCell in 1:nCells
+    invAreaCell1 = 1.0 / areaCell[iCell]
+    for i in 1:nEdgesOnCell[iCell]
+        j = kiteIndexOnCell[i,iCell]
+        iVertex = verticesOnCell[i,iCell]
+        relativeVorticityCell[iCell] = relativeVorticityCell[iCell]
+                                     + kiteAreasOnVertex[j,iVertex] * relativeVorticity[iVertex]*invAreaCell1
+    end
+end
+# Cell -> Vertex
+for iVertex in 1:nVertices
+    invAreaTri1 = 1.0 / areaTriangle[iVertex]
+    areaSum = 0.0
+    relativeVorticity[iVertex] = 0.0
+    for i in 1:vertexDegree
+        iCell = cellsOnVertex[i,iVertex]
+        areaSum = areaSum + kiteAreasOnVertex[i,iVertex]
+        if ( iCell > 0 )
+        relativeVorticity[iVertex] = relativeVorticity[iVertex] + kiteAreasOnVertex[i,iVertex] * relativeVorticityCell[iCell]
+        end
+    end
+    relativeVorticity[iVertex] = relativeVorticity[iVertex] / areaSum
+end
+
 
 ## Del4
 for iEdge in 1:nEdges

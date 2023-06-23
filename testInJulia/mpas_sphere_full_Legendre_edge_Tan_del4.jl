@@ -33,9 +33,9 @@ using SHTOOLS
 
 #mesh_file_name = "../../meshes/oQU240.nc"   # Miniweather output file name
 
-#mesh_file_name = "../../meshes/x1.2562.grid.nc"   # Miniweather output file name
+mesh_file_name = "../../meshes/x1.2562.grid.nc"   # Miniweather output file name
 #mesh_file_name = "../../meshes/x1.10242.grid.nc"   # Miniweather output file name
-mesh_file_name = "../../meshes/x1.40962.grid.nc"   # Miniweather output file name
+#mesh_file_name = "../../meshes/x1.40962.grid.nc"   # Miniweather output file name
 #mesh_file_name = "../../meshes/x1.163842.grid.nc"   # Miniweather output file name
 #mesh_file_name = "../../meshes/x1.655362.grid.nc"   # Miniweather output file name
 #mesh_file_name = "../../meshes/x1.2621442.grid.nc"   # Miniweather output file name

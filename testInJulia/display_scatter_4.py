@@ -18,9 +18,10 @@ plt.rc('legend',fontsize=12.5)
 
 runDir = './'
 #initFileName = '../../meshes/oQU240.nc'
-#initFileName = 'x1.2562.grid.nc'
+
+initFileName = 'x1.2562.grid.nc'
 #initFileName = 'x1.10242.grid.nc'
-initFileName = 'x1.40962.grid.nc'
+#initFileName = 'x1.40962.grid.nc'
 outputFileName = 'output.nc'
 #outputFileName = 'output_time.nc'
 
@@ -52,16 +53,16 @@ dvEdge = initDS.variables['dvEdge']
 #output_init1 = outDS.variables['vLapAnl']
 
 #output_init1 = outDS.variables['relativeVorticityAnlEdge']
-#output_init1 = outDS.variables['uLapAnl']
-output_init1 = outDS.variables['normalVelocityAnl']
+output_init1 = outDS.variables['uLapAnl']
+#output_init1 = outDS.variables['normalVelocityAnl']
 
 #output_var = outDS.variables['divergenceVert']
 #output_var = outDS.variables['divergenceEdge']
 #output_var = outDS.variables['divergenceSL']
 
 #output_var1 = outDS.variables['relativeVorticityEdge']
-#output_var1 = outDS.variables['u']
-output_var1 = outDS.variables['del2u']
+output_var1 = outDS.variables['u']
+#output_var1 = outDS.variables['del2u']
 
 #output_var2 = outDS.variables['uLapAnl']
 #====================================================#
@@ -96,11 +97,13 @@ fig = plt.figure(figsize=(9,12))
 axs = fig.subplots(3,1)
 
 
+msize = 3.0
+
 #------
 #ax = plt.subplot(4,1,1)
 #ax = axs[0,0]
 ax = axs[0]
-im = ax.scatter(lonEdge,latEdge,c=output_var1,s=10.0,marker='o',cmap=plt.cm.bwr,vmin=Umin,vmax=Umax)
+im = ax.scatter(lonEdge,latEdge,c=output_var1,s=msize,marker='o',cmap=plt.cm.bwr,vmin=Umin,vmax=Umax)
 divider = make_axes_locatable(ax)
 cax = divider.append_axes('right', size='2%', pad=0.10)
 plt.colorbar(im,cax=cax)
@@ -110,7 +113,7 @@ ax.set_ylim([ymin,ymax])
 #ax = plt.subplot(4,2,1)
 #ax = axs[0,1]
 ax = axs[1]
-im = ax.scatter(lonEdge,latEdge,c=output_init1,s=10.0,marker='o',cmap=plt.cm.bwr,vmin=Vmin,vmax=Vmax)
+im = ax.scatter(lonEdge,latEdge,c=output_init1,s=msize,marker='o',cmap=plt.cm.bwr,vmin=Vmin,vmax=Vmax)
 #im = ax.scatter(lonEdge,latEdge,c=dvEdge,s=10.0,marker='o')#,cmap=plt.cm.bwr)
 divider = make_axes_locatable(ax)
 cax = divider.append_axes('right', size='2%', pad=0.10)
@@ -140,7 +143,7 @@ ax.set_ylim([ymin,ymax])
 #------
 #ax = axs[2,0]
 ax = axs[2]
-im = ax.scatter(lonEdge,latEdge,c=(output_var1-output_init1),s=10.0,marker='o',cmap=plt.cm.bwr,vmin=Emin,vmax=Emax)
+im = ax.scatter(lonEdge,latEdge,c=(output_var1-output_init1),s=msize,marker='o',cmap=plt.cm.bwr,vmin=Emin,vmax=Emax)
 divider = make_axes_locatable(ax)
 cax = divider.append_axes('right', size='2%', pad=0.10)
 plt.colorbar(im,cax=cax)
